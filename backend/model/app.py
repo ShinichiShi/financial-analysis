@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import joblib
 import numpy as np
@@ -12,8 +13,29 @@ import logging
 from datetime import datetime, timedelta
 from mlxtend.frequent_patterns import apriori
 from mlxtend.frequent_patterns import association_rules
+from typing import Dict, Any
+
+# Configure logging
+import logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),  # Output to console
+        logging.FileHandler('stock_analysis.log')  # Output to a log file
+    ]
+)
 
 app = FastAPI(title="Stock Price Prediction API")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Twelve Data API Configuration
 TWELVE_DATA_API_KEY = "195c0092a87e4ce294517bd8ce0e9bde"  # Replace with your API key
@@ -34,6 +56,11 @@ class ForecastRequest(BaseModel):
     symbol: str  # Stock symbol to forecast
     forecast_horizon: int  # Number of future periods to forecast
     interval: str = "1h"  # Default: "1h"
+
+class StockAnalysisRequest(BaseModel):
+    symbol: str
+    start_date: str = "2023-01-01"
+    end_date: str = "2024-01-01"
 
 # Load the trained LSTM model and scaler from pickle files
 try:
@@ -215,6 +242,201 @@ def multi_step_forecast(model, last_sequence, forecast_days, scaler):
         current_sequence = np.append(current_sequence, [[pred_scaled]], axis=0)[1:]
 
     return scaler.inverse_transform(np.array(predictions_scaled).reshape(-1, 1)).flatten()
+
+def safe_float_conversion(value, default=0):
+    """
+    Safely convert a value to float, handling NaN and other edge cases.
+    
+    Args:
+        value: Input value to convert
+        default: Default value to return if conversion fails
+    
+    Returns:
+        Float value or default
+    """
+    try:
+        # Check for None, NaN, or other non-numeric values
+        if pd.isna(value) or value is None:
+            return default
+        
+        # Convert to float
+        float_val = float(value)
+        
+        # Check for infinity or extremely large values
+        if np.isinf(float_val):
+            return default
+        
+        return float_val
+    except (TypeError, ValueError):
+        return default
+
+@app.post("/comprehensive_analysis")
+def comprehensive_stock_analysis(request: StockAnalysisRequest):
+    try:
+        # Fetch stock data
+        stock_data = yf.Ticker(request.symbol)
+        
+        # Log available info keys for debugging
+        logging.info(f"Available stock info keys: {list(stock_data.info.keys())}")
+        
+        # Fetch historical market data
+        try:
+            hist = stock_data.history(start=request.start_date, end=request.end_date)
+            logging.info(f"Historical data shape: {hist.shape}")
+        except Exception as hist_error:
+            logging.error(f"Error fetching historical data: {hist_error}")
+            hist = pd.DataFrame()  # Provide an empty DataFrame to prevent further errors
+        
+        # Basic Financial Metrics
+        analysis_results: Dict[str, Any] = {
+            "basic_info": {
+                "company_name": stock_data.info.get('longName', request.symbol),
+                "sector": stock_data.info.get('sector', 'N/A'),
+                "industry": stock_data.info.get('industry', 'N/A'),
+            },
+            "price_metrics": {
+                "current_price": safe_float_conversion(stock_data.info.get('currentPrice', 0)),
+                "fifty_two_week_high": safe_float_conversion(stock_data.info.get('fiftyTwoWeekHigh', 0)),
+                "fifty_two_week_low": safe_float_conversion(stock_data.info.get('fiftyTwoWeekLow', 0)),
+            },
+            "financial_health": {
+                "market_cap": safe_float_conversion(stock_data.info.get('marketCap', 0)),
+                "pe_ratio": safe_float_conversion(stock_data.info.get('trailingPE', 0)),
+                "dividend_yield": safe_float_conversion(stock_data.info.get('dividendYield', 0)),
+                "beta": safe_float_conversion(stock_data.info.get('beta', 0)),
+            },
+            "performance_analysis": {
+                "monthly_returns": [],
+                "volatility": 0,
+                "sharpe_ratio": 0
+            }
+        }
+        
+        # Ensure we have enough historical data
+        if len(hist) > 0:
+            # Calculate Monthly Returns
+            monthly_returns = hist['Close'].resample('M').last().pct_change()
+            
+            # Filter out NaN returns
+            monthly_returns = monthly_returns.dropna()
+            
+            analysis_results['performance_analysis']['monthly_returns'] = [
+                {
+                    "month": date.strftime('%B %Y'),
+                    "return": safe_float_conversion(return_val * 100, 0)
+                } 
+                for date, return_val in monthly_returns.items()
+            ]
+            
+            # Calculate Volatility (Standard Deviation of Returns)
+            try:
+                volatility = monthly_returns.std() * np.sqrt(12)  # Annualized
+                analysis_results['performance_analysis']['volatility'] = safe_float_conversion(volatility * 100, 0)
+            except Exception as vol_error:
+                logging.warning(f"Volatility calculation error: {vol_error}")
+                analysis_results['performance_analysis']['volatility'] = 0
+            
+            # Simple Sharpe Ratio Calculation (assuming risk-free rate of 2%)
+            try:
+                risk_free_rate = 0.02
+                excess_returns = monthly_returns - (risk_free_rate / 12)
+                
+                # Safely calculate Sharpe Ratio
+                mean_excess_return = excess_returns.mean()
+                std_excess_return = excess_returns.std()
+                
+                if std_excess_return != 0:
+                    sharpe_ratio = mean_excess_return / std_excess_return * np.sqrt(12)
+                    analysis_results['performance_analysis']['sharpe_ratio'] = safe_float_conversion(sharpe_ratio, 0)
+                else:
+                    analysis_results['performance_analysis']['sharpe_ratio'] = 0
+            except Exception as sharpe_error:
+                logging.warning(f"Sharpe Ratio calculation error: {sharpe_error}")
+                analysis_results['performance_analysis']['sharpe_ratio'] = 0
+            
+            # Risk Assessment
+            volatility_val = analysis_results['performance_analysis']['volatility']
+            sharpe_ratio_val = analysis_results['performance_analysis']['sharpe_ratio']
+            
+            analysis_results['risk_assessment'] = {
+                "volatility_category": (
+                    "Low" if volatility_val < 10 else 
+                    "Moderate" if volatility_val < 20 else 
+                    "High"
+                ),
+                "investment_risk_level": (
+                    "Conservative" if sharpe_ratio_val > 1 else 
+                    "Moderate" if sharpe_ratio_val > 0 else 
+                    "Aggressive"
+                )
+            }
+        else:
+            # Default values if no historical data
+            analysis_results['performance_analysis'] = {
+                "monthly_returns": [],
+                "volatility": 0,
+                "sharpe_ratio": 0
+            }
+            analysis_results['risk_assessment'] = {
+                "volatility_category": "N/A",
+                "investment_risk_level": "N/A"
+            }
+        
+        # Sentiment and Trend Analysis
+        try:
+            # Try multiple methods to get recommendations
+            recommendations = None
+            
+            # Method 1: Direct recommendations attribute
+            recommendations = stock_data.recommendations
+            
+            # Method 2: Try recommendations from info
+            if recommendations is None or (isinstance(recommendations, pd.DataFrame) and recommendations.empty):
+                recommendations = stock_data.info.get('recommendationKey', None)
+            
+            # Logging for debugging
+            logging.info(f"Recommendations type: {type(recommendations)}")
+            logging.info(f"Recommendations content: {recommendations}")
+            
+            # Process recommendations if available
+            if recommendations is not None and not (isinstance(recommendations, pd.DataFrame) and recommendations.empty):
+                if isinstance(recommendations, pd.DataFrame):
+                    # Ensure columns exist
+                    columns = recommendations.columns
+                    analysis_results['analyst_recommendations'] = {
+                        "buy": int(safe_float_conversion(recommendations['Buy'].sum() if 'Buy' in columns else 0)),
+                        "hold": int(safe_float_conversion(recommendations['Hold'].sum() if 'Hold' in columns else 0)),
+                        "sell": int(safe_float_conversion(recommendations['Sell'].sum() if 'Sell' in columns else 0))
+                    }
+                else:
+                    # Fallback for other recommendation formats
+                    analysis_results['analyst_recommendations'] = {
+                        "buy": 0,
+                        "hold": 0,
+                        "sell": 0
+                    }
+            else:
+                # No recommendations found
+                analysis_results['analyst_recommendations'] = {
+                    "buy": 0,
+                    "hold": 0,
+                    "sell": 0
+                }
+        except Exception as rec_error:
+            # Log the recommendation error but don't stop the entire analysis
+            logging.warning(f"Could not fetch analyst recommendations: {rec_error}")
+            analysis_results['analyst_recommendations'] = {
+                "buy": 0,
+                "hold": 0,
+                "sell": 0
+            }
+        
+        return analysis_results
+    
+    except Exception as e:
+        # More detailed error logging
+        logging.error(f"Comprehensive analysis error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error in comprehensive analysis: {str(e)}")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

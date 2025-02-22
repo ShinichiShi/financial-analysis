@@ -9,11 +9,16 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@types/axios": "^0.14.4",
+    "@types/recharts": "^1.8.29",
+    "axios": "^1.7.9",
+    "framer-motion": "^12.4.7",
     "gsap": "^3.12.7",
     "locomotive-scroll": "^4.1.4",
     "next": "15.1.7",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "recharts": "^2.15.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

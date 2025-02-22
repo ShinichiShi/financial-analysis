@@ -3,86 +3,124 @@
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import Link from 'next/link';
 
 export default function Home() {
   const mainRef = useRef(null);
 
   useEffect(() => {
-    gsap.registerPlugin(ScrollTrigger);
-    
-    const ctx = gsap.context(() => {
-      // Initial load animations
-      gsap.from(".nav-content", {
-        y: -50,
-        opacity: 0,
-        duration: 1,
-        ease: "power3.out"
-      });
+    if (typeof window !== 'undefined') {
+      gsap.registerPlugin(ScrollTrigger);
+      
+      // Destroy existing ScrollTriggers before creating new ones
+      ScrollTrigger.getAll().forEach(trigger => trigger.kill());
+      
+      const initScrollTriggers = () => {
+        // Destroy any existing context
+        const ctx = gsap.context(() => {
+          // Initial load animations
+          gsap.from(".nav-content", {
+            y: -50,
+            opacity: 0,
+            duration: 1,
+            ease: "power3.out"
+          });
 
-      gsap.from(".hero-content", {
-        y: 100,
-        opacity: 0,
-        duration: 1,
-        delay: 0.2,
-        ease: "power3.out"
-      });
+          gsap.from(".hero-content", {
+            y: 100,
+            opacity: 0,
+            duration: 1,
+            delay: 0.2,
+            ease: "power3.out"
+          });
 
-      gsap.from(".chart-preview", {
-        y: 100,
-        opacity: 0,
-        duration: 1,
-        delay: 0.4,
-        ease: "power3.out"
-      });
+          gsap.from(".chart-preview", {
+            y: 100,
+            opacity: 0,
+            duration: 1,
+            delay: 0.4,
+            ease: "power3.out"
+          });
 
-      // Scroll trigger animations for other sections
-      gsap.from(".features-section", {
-        scrollTrigger: {
-          trigger: ".features-section",
-          start: "top 80%",
-        },
-        y: 100,
-        opacity: 0,
-        duration: 1,
-        ease: "power3.out"
-      });
+          // Scroll trigger animations for other sections
+          gsap.from(".features-section", {
+            scrollTrigger: {
+              trigger: ".features-section",
+              start: "top bottom",
+              toggleActions: "play none none reverse",
+              preventOverlaps: true,
+              fastScrollEnd: true,
+              immediateRender: false
+            },
+            y: 100,
+            opacity: 0,
+            duration: 1,
+            ease: "power3.out"
+          });
 
-      gsap.from(".pricing-section", {
-        scrollTrigger: {
-          trigger: ".pricing-section",
-          start: "top 80%",
-        },
-        y: 100,
-        opacity: 0,
-        duration: 1,
-        ease: "power3.out"
-      });
+          gsap.from(".pricing-section", {
+            scrollTrigger: {
+              trigger: ".pricing-section",
+              start: "top bottom",
+              toggleActions: "play none none reverse",
+              preventOverlaps: true,
+              fastScrollEnd: true,
+              immediateRender: false
+            },
+            y: 100,
+            opacity: 0,
+            duration: 1,
+            ease: "power3.out"
+          });
 
-      gsap.from(".social-proof-section", {
-        scrollTrigger: {
-          trigger: ".social-proof-section",
-          start: "top 80%",
-        },
-        y: 100,
-        opacity: 0,
-        duration: 1,
-        ease: "power3.out"
-      });
+          gsap.from(".social-proof-section", {
+            scrollTrigger: {
+              trigger: ".social-proof-section",
+              start: "top bottom",
+              toggleActions: "play none none reverse",
+              preventOverlaps: true,
+              fastScrollEnd: true,
+              immediateRender: false
+            },
+            y: 100,
+            opacity: 0,
+            duration: 1,
+            ease: "power3.out"
+          });
 
-      gsap.from(".footer-content", {
-        scrollTrigger: {
-          trigger: ".footer-content",
-          start: "top 90%",
-        },
-        y: 50,
-        opacity: 0,
-        duration: 1,
-        ease: "power3.out"
-      });
-    }, mainRef);
+          gsap.from(".footer-content", {
+            scrollTrigger: {
+              trigger: ".footer-content",
+              start: "top bottom",
+              toggleActions: "play none none reverse",
+              preventOverlaps: true,
+              fastScrollEnd: true,
+              immediateRender: false
+            },
+            y: 50,
+            opacity: 0,
+            duration: 1,
+            ease: "power3.out"
+          });
+        }, mainRef);
 
-    return () => ctx.revert();
-  }, []);
+        return () => {
+          // Properly clean up animations and ScrollTriggers
+          ctx.revert();
+          ScrollTrigger.getAll().forEach(trigger => trigger.kill());
+        };
+      };
+
+      // Initialize after a short delay to ensure DOM is ready
+      const timer = setTimeout(initScrollTriggers, 100);
+
+      // Cleanup function
+      return () => {
+        clearTimeout(timer);
+        ScrollTrigger.getAll().forEach(trigger => trigger.kill());
+      };
+    }
+  }, []); // Empty dependency array ensures this runs only once on mount
 
   return (
     <div ref={mainRef} className="min-h-screen bg-black">
@@ -110,12 +148,15 @@ export default function Home() {
               <button className="hidden md:block px-4 py-2 text-gray-400 hover:text-white transition-colors border border-gray-700 rounded-lg hover:border-sky-500">
                 Log in
               </button>
-              <button className="rounded-lg px-4 py-2 bg-sky-600 text-white font-medium hover:bg-sky-700 transition-colors flex items-center">
-                <span>Start Free</span>
-                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              <Link 
+                href="/predict" 
+                className="rounded-lg px-8 py-4 bg-sky-600 text-white font-medium hover:bg-sky-700 transition-colors text-lg flex items-center group"
+              >
+                <span>Start Predicting</span>
+                <svg className="w-5 h-5 ml-2 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
-              </button>
+              </Link>
             </div>
 
             {/* Mobile Menu Button */}
@@ -160,12 +201,15 @@ export default function Home() {
                   </p>
                   
                   <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                    <button className="rounded-lg px-8 py-4 bg-sky-600 text-white font-medium hover:bg-sky-700 transition-colors text-lg flex items-center group">
+                    <Link 
+                      href="/predict" 
+                      className="rounded-lg px-8 py-4 bg-sky-600 text-white font-medium hover:bg-sky-700 transition-colors text-lg flex items-center group"
+                    >
                       <span>Start Predicting</span>
                       <svg className="w-5 h-5 ml-2 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                       </svg>
-                    </button>
+                    </Link>
                     <button className="rounded-lg px-8 py-4 bg-white/10 text-white font-medium hover:bg-white/20 transition-colors text-lg border border-white/20 flex items-center">
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
@@ -769,7 +813,7 @@ export default function Home() {
                   <a href="#" className="text-gray-400 hover:text-white transition-colors">
                     <span className="sr-only">LinkedIn</span>
                     <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 2.063-1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
                     </svg>
                   </a>
                   <a href="#" className="text-gray-400 hover:text-white transition-colors">
