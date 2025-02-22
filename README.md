@@ -1,36 +1,93 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FinCheck
 
-## Getting Started
+## Overview
 
-First, run the development server:
+FinCheck is a financial analysis platform that provides users with real-time stock predictions and insights. The platform allows users to log in, view trending stocks, and predict stock prices using machine learning models. Future updates will introduce features such as credit risk assessment, market basket analysis, and customer segmentation.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Features
+
+- User Authentication: Secure login using Clerk Auth.
+
+- Stock Predictions: Users can input a stock symbol to receive price predictions.
+
+- Trending Stocks: Dashboard displays top-performing stocks and insights.
+
+- Interactive Graphs: Visual representation of stock trends and predictions.
+
+- Future Features: Credit risk analysis, market basket insights, and customer segmentation.
+
+## Tech Stack
+
+- Frontend: Next.js (React-based framework)
+
+- Backend: Express.js with Node.js
+
+- Authentication: Clerk Auth
+
+- Data Processing & ML: Python (FastAPI)
+
+- Visualization: Recharts.js, Chart.js
+
+## Installation & Setup
+
+Prerequisites: 
+
+Ensure you have the following installed:
+```
+Node.js (>=16)
+
+npm or yarn
+```
+## Backend Setup
+
+### Clone the repository
+git clone https://github.com/your-repo/FinCheck.git
+```
+cd FinCheck/backend
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Install dependencies
+```
+npm install
+```
+### Start the backend server
+```
+npm run dev
+```
+Frontend Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Install dependencies
+```
+npm install
+```
+### Start the Next.js application
+```
+npm run dev
+```
+## Usage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Login with Clerk authentication.
 
-## Learn More
+- View Trending Stocks on the dashboard.
 
-To learn more about Next.js, take a look at the following resources:
+- Enter a Stock Symbol to receive a machine learning-based prediction.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Explore Predictions using interactive graphs.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Future Enhancements**
 
-## Deploy on Vercel
+   - *Credit Risk Analysis*: Predict loan eligibility based on user financial behavior.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   - *Market Basket Analysis*: Identify purchasing patterns in financial transactions.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   - *Customer Segmentation*: Group users based on spending habits.
+
+   - *Advanced ML Models*: Improve stock prediction accuracy with better algorithms.
+
+### Contributing
+
+We welcome contributions! Feel free to fork the repo, create a branch, and submit a pull request.
+
+### License
+
+[MIT License](LICENSE)
