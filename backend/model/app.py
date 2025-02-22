@@ -4,16 +4,36 @@ import joblib
 import numpy as np
 import pandas as pd
 import uvicorn
+import yfinance as yf
 import requests
-import io
-import os
+import pickle
 import json
 import logging
+from datetime import datetime, timedelta
+from mlxtend.frequent_patterns import apriori
+from mlxtend.frequent_patterns import association_rules
+
 app = FastAPI(title="Stock Price Prediction API")
 
-# Alpha Vantage API Configuration
-ALPHA_VANTAGE_API_KEY = "XL36FJ4OLX72LPQ3"
-ALPHA_VANTAGE_URL = "https://www.alphavantage.co/query"
+# Twelve Data API Configuration
+TWELVE_DATA_API_KEY = "195c0092a87e4ce294517bd8ce0e9bde"  # Replace with your API key
+TWELVE_DATA_URL = "https://api.twelvedata.com"
+
+class StockAssociationRequest(BaseModel):
+    tickers: list[str]  # List of stock tickers
+    start_date: str  # YYYY-MM-DD
+    end_date: str  # YYYY-MM-DD
+    min_support: float = 0.2  # Default min support
+    min_lift: float = 1.0  # Default min lift
+
+class StockDataRequest(BaseModel):
+    symbol: str  # e.g., "AAPL"
+    interval: str = "1h"  # Default: "1h"
+
+class ForecastRequest(BaseModel):
+    symbol: str  # Stock symbol to forecast
+    forecast_horizon: int  # Number of future periods to forecast
+    interval: str = "1h"  # Default: "1h"
 
 # Load the trained LSTM model and scaler from pickle files
 try:
@@ -22,62 +42,100 @@ try:
 except Exception as e:
     raise Exception(f"Error loading model or scaler: {e}")
 
-# Define request models
-class StockDataRequest(BaseModel):
-    symbol: str  # e.g., "IBM"
-    interval: str = "5min"  # Default: "5min"
-
-class ForecastRequest(BaseModel):
-    symbol: str  # Stock symbol to forecast
-    forecast_horizon: int  # Number of future days to forecast
-    interval: str = "5min"  # Default: "5min"
-
-def fetch_alpha_vantage_data(symbol: str, interval: str) -> pd.DataFrame:
-    """Fetch stock data from Alpha Vantage and return as DataFrame."""
+def fetch_twelve_data(symbol: str, interval: str) -> pd.DataFrame:
+    """Fetch stock data from Twelve Data and return as DataFrame."""
+    endpoint = f"{TWELVE_DATA_URL}/time_series"
+    
     params = {
-        "function": "TIME_SERIES_INTRADAY",
         "symbol": symbol,
         "interval": interval,
-        "apikey": ALPHA_VANTAGE_API_KEY,
-        "outputsize": "full"  # Get the full set of time series data
+        "apikey": TWELVE_DATA_API_KEY,
+        "outputsize": "5000"  # Get maximum available data points
     }
     
-    response = requests.get(ALPHA_VANTAGE_URL, params=params)
-    response_data = response.json()
-    
-    # Log response for debugging
-    logging.warning(json.dumps(response_data, indent=2))
+    try:
+        response = requests.get(endpoint, params=params)
+        response.raise_for_status()  # Raise an exception for bad status codes
+        data = response.json()
+        
+        # Log response for debugging
+        logging.debug(json.dumps(data, indent=2))
+        
+        if "values" not in data:
+            raise HTTPException(status_code=400, detail=f"Invalid API response: {data}")
+        
+        # Convert API response to DataFrame
+        df = pd.DataFrame(data["values"])
+        
+        # Convert string values to appropriate types
+        df["datetime"] = pd.to_datetime(df["datetime"])
+        numeric_columns = ["open", "high", "low", "close", "volume"]
+        for col in numeric_columns:
+            df[col] = pd.to_numeric(df[col])
+        
+        # Rename columns to match existing code
+        df = df.rename(columns={
+            "datetime": "Date",
+            "open": "Open",
+            "high": "High",
+            "low": "Low",
+            "close": "Close",
 
-    # Dynamically find the correct key for time series data
-    time_series_key = f"Time Series ({interval})"
+            "volume": "Volume"
+        })
+        
+        # Set index and sort
+        df.set_index("Date", inplace=True)
+        df.sort_index(inplace=True)
+        
+        return df
+        
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching data from Twelve Data: {str(e)}")
 
-    if time_series_key not in response_data:
-        raise HTTPException(status_code=400, detail=f"Invalid API response: {response_data}")
+@app.post("/stock_association")
+def stock_association(request: StockAssociationRequest):
+    try:
+        # Fetch stock data using yfinance (keeping this as is since it handles multiple symbols well)
+        df = yf.download(request.tickers, start=request.start_date, end=request.end_date)
+        df = df["Close"]  # Fix MultiIndex issue
 
-    time_series_data = response_data[time_series_key]
+        # Convert to binary transactions
+        df_returns = df.pct_change().dropna()
+        df_binary = df_returns > 0  # Boolean values (True = price increase, False = decrease)
 
-    # Convert JSON to DataFrame
-    rows = []
-    for timestamp, values in time_series_data.items():
-        rows.append([
-            timestamp,
-            float(values["1. open"]),
-            float(values["2. high"]),
-            float(values["3. low"]),
-            float(values["4. close"]),
-            int(values["5. volume"])
-        ])
+        # Apply Apriori Algorithm
+        frequent_itemsets = apriori(df_binary, min_support=request.min_support, use_colnames=True)
+        rules = association_rules(frequent_itemsets, metric="lift", min_threshold=request.min_lift)
 
-    df = pd.DataFrame(rows, columns=["Date", "Open", "High", "Low", "Close", "Volume"])
-    df["Date"] = pd.to_datetime(df["Date"])
-    df.sort_values("Date", inplace=True)
-    df.set_index("Date", inplace=True)
-    
-    return df
+        # Save rules as a pickle file
+        pickle_filename = "association_rules.pkl"
+        with open(pickle_filename, "wb") as f:
+            pickle.dump(rules, f)
+
+        # Format results for JSON response
+        rules_list = []
+        for _, row in rules.iterrows():
+            rules_list.append({
+                "antecedents": list(row["antecedents"]),
+                "consequents": list(row["consequents"]),
+                "support": round(row["support"], 4),
+                "confidence": round(row["confidence"], 4),
+                "lift": round(row["lift"], 4)
+            })
+
+        return {
+            "message": "Stock association rules generated successfully!",
+            "rules": rules_list,
+            "pickle_file": pickle_filename
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing stock association: {e}")
 
 @app.post("/fetch_data")
 def fetch_data(request: StockDataRequest):
-    df = fetch_alpha_vantage_data(request.symbol, request.interval)
+    df = fetch_twelve_data(request.symbol, request.interval)
     return {"message": "Stock data fetched successfully!", "csv_data": df.to_csv()}
 
 @app.post("/forecast")
@@ -86,8 +144,8 @@ def forecast(request: ForecastRequest):
         raise HTTPException(status_code=400, detail="Forecast horizon must be positive.")
 
     try:
-        # Fetch the latest data from Alpha Vantage
-        df = fetch_alpha_vantage_data(request.symbol, request.interval)
+        # Fetch the latest data from Twelve Data
+        df = fetch_twelve_data(request.symbol, request.interval)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching stock data: {str(e)}")
 
@@ -115,10 +173,23 @@ def forecast(request: ForecastRequest):
     
     # Create response with timestamps
     last_date = df.index[-1]
+    # Adjust the frequency based on the interval
+    freq_map = {
+        "1min": "T",
+        "5min": "5T",
+        "15min": "15T",
+        "30min": "30T",
+        "1h": "H",
+        "2h": "2H",
+        "4h": "4H",
+        "1day": "D"
+    }
+    freq = freq_map.get(request.interval, "H")
+    
     future_dates = pd.date_range(
         start=last_date, 
         periods=request.forecast_horizon + 1, 
-        freq=request.interval
+        freq=freq
     )[1:]  # Skip the first date as it's the last actual data point
 
     forecast_data = {
@@ -133,7 +204,6 @@ def forecast(request: ForecastRequest):
         "forecast_data": forecast_data
     }
 
-# Multi-step forecasting function
 def multi_step_forecast(model, last_sequence, forecast_days, scaler):
     predictions_scaled = []
     current_sequence = last_sequence.copy()
@@ -146,6 +216,5 @@ def multi_step_forecast(model, last_sequence, forecast_days, scaler):
 
     return scaler.inverse_transform(np.array(predictions_scaled).reshape(-1, 1)).flatten()
 
-# Run the API
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
