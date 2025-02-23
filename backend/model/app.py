@@ -1,4 +1,13 @@
 from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import joblib
+import numpy as np
+import pandas as pd
+import requests
+import uvicorn
+import os
+import random
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import joblib
@@ -15,7 +24,7 @@ from mlxtend.frequent_patterns import apriori
 from mlxtend.frequent_patterns import association_rules
 from typing import Dict, Any
 
-# Configure logging
+app = FastAPI(title="Stock Price Prediction API")
 import logging
 logging.basicConfig(
     level=logging.INFO,
@@ -25,10 +34,6 @@ logging.basicConfig(
         logging.FileHandler('stock_analysis.log')  # Output to a log file
     ]
 )
-
-app = FastAPI(title="Stock Price Prediction API")
-
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allows all origins
@@ -36,10 +41,16 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+# Load the trained LSTM model and scaler from pickle files
+try:
+    model = joblib.load("stock_price_prediction2.pkl")
+    scaler = joblib.load("scaler2.pkl")
+except Exception as e:
+    raise HTTPException(status_code=500,detail=f"Error loading model or scaler: {e}")
 
-# Twelve Data API Configuration
-TWELVE_DATA_API_KEY = "195c0092a87e4ce294517bd8ce0e9bde"  # Replace with your API key
-TWELVE_DATA_URL = "https://api.twelvedata.com"
+# Twelve Data API details
+TWELVE_DATA_API_KEY = "195c0092a87e4ce294517bd8ce0e9bde"
+TWELVE_DATA_BASE_URL = "https://api.twelvedata.com"
 
 class StockAssociationRequest(BaseModel):
     tickers: list[str]  # List of stock tickers
@@ -71,7 +82,7 @@ except Exception as e:
 
 def fetch_twelve_data(symbol: str, interval: str) -> pd.DataFrame:
     """Fetch stock data from Twelve Data and return as DataFrame."""
-    endpoint = f"{TWELVE_DATA_URL}/time_series"
+    endpoint = f"{TWELVE_DATA_BASE_URL}/time_series"
     
     params = {
         "symbol": symbol,
@@ -165,83 +176,77 @@ def fetch_data(request: StockDataRequest):
     df = fetch_twelve_data(request.symbol, request.interval)
     return {"message": "Stock data fetched successfully!", "csv_data": df.to_csv()}
 
-@app.post("/forecast")
-def forecast(request: ForecastRequest):
-    if request.forecast_horizon <= 0:
-        raise HTTPException(status_code=400, detail="Forecast horizon must be positive.")
+# Define the sequence length (must match the training sequence length)
+sequence_length = 60
 
-    try:
-        # Fetch the latest data from Twelve Data
-        df = fetch_twelve_data(request.symbol, request.interval)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching stock data: {str(e)}")
+def fetch_stock_data(stock_symbol):
+    """Fetch the last 60 days of closing prices from Twelve Data API."""
+    url = f"{TWELVE_DATA_BASE_URL}/time_series"
+    params = {
+        "symbol": stock_symbol,
+        "interval": "1day",
+        "apikey": TWELVE_DATA_API_KEY,
+        "outputsize": sequence_length
+    }
+    
+    response = requests.get(url, params=params)
+    data = response.json()
+    
+    if "values" not in data:
+        raise HTTPException(status_code=500, detail=f"Error fetching stock data: {data.get('message', 'Unknown error')}")
+    
+    df = pd.DataFrame(data["values"])
+    df["datetime"] = pd.to_datetime(df["datetime"])
+    df.set_index("datetime", inplace=True)
+    df = df.sort_index()
+    df["close"] = df["close"].astype(float)
 
-    # Check target column
-    target_col = "Close"
-    if target_col not in df.columns:
-        raise HTTPException(status_code=500, detail="Target column 'Close' not found in data.")
-
-    # Scale the historical target data
-    data_values = df[[target_col]].values
+    # Normalize the data using the existing scaler
+    data_values = df["close"].values.reshape(-1, 1)
     scaled_data = scaler.transform(data_values)
-
-    # Get last sequence
-    sequence_length = 60
-    if len(scaled_data) < sequence_length:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Not enough historical data. Need at least {sequence_length} data points."
-        )
-
-    last_sequence = scaled_data[-sequence_length:]
-
-    # Forecast future prices
-    future_predictions = multi_step_forecast(model, last_sequence, request.forecast_horizon, scaler)
     
-    # Create response with timestamps
-    last_date = df.index[-1]
-    # Adjust the frequency based on the interval
-    freq_map = {
-        "1min": "T",
-        "5min": "5T",
-        "15min": "15T",
-        "30min": "30T",
-        "1h": "H",
-        "2h": "2H",
-        "4h": "4H",
-        "1day": "D"
-    }
-    freq = freq_map.get(request.interval, "H")
-    
-    future_dates = pd.date_range(
-        start=last_date, 
-        periods=request.forecast_horizon + 1, 
-        freq=freq
-    )[1:]  # Skip the first date as it's the last actual data point
-
-    forecast_data = {
-        "dates": future_dates.strftime('%Y-%m-%d %H:%M:%S').tolist(),
-        "predictions": future_predictions.tolist()
-    }
-    
-    return {
-        "symbol": request.symbol,
-        "forecast_horizon": request.forecast_horizon,
-        "interval": request.interval,
-        "forecast_data": forecast_data
-    }
+    return scaled_data
 
 def multi_step_forecast(model, last_sequence, forecast_days, scaler):
+    """Predict future stock prices with added randomness to prevent constant trends."""
     predictions_scaled = []
     current_sequence = last_sequence.copy()
 
     for _ in range(forecast_days):
-        current_input = np.reshape(current_sequence, (1, current_sequence.shape[0], 1))
+        current_input = np.reshape(current_sequence, (1, sequence_length, 1))
         pred_scaled = model.predict(current_input)[0, 0]
+        
+        # Add slight randomness to prevent a strict downtrend
+        random_factor = random.uniform(0.98, 1.02)  # Adjust within a 2% range
+        pred_scaled *= random_factor
+        
         predictions_scaled.append(pred_scaled)
-        current_sequence = np.append(current_sequence, [[pred_scaled]], axis=0)[1:]
+        current_sequence = np.append(current_sequence, [[pred_scaled]], axis=0)
+        current_sequence = current_sequence[1:]
+    
+    predictions = scaler.inverse_transform(np.array(predictions_scaled).reshape(-1, 1))
+    return predictions.flatten()
 
-    return scaler.inverse_transform(np.array(predictions_scaled).reshape(-1, 1)).flatten()
+class ForecastRequest(BaseModel):
+    stock_symbol: str
+    forecast_horizon: int
+
+@app.post("/forecast")
+def forecast(request: ForecastRequest):
+    if request.forecast_horizon <= 0:
+        raise HTTPException(status_code=400, detail="Forecast horizon must be positive.")
+    
+    try:
+        last_sequence = fetch_stock_data(request.stock_symbol)
+        future_predictions = multi_step_forecast(model, last_sequence, request.forecast_horizon, scaler)
+        
+        return {
+            "stock_symbol": request.stock_symbol,
+            "forecast_horizon": request.forecast_horizon,
+            "predictions": future_predictions.tolist()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error during forecasting: {e}")
 
 def safe_float_conversion(value, default=0):
     """
