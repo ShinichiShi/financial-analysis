@@ -1,13 +1,13 @@
-'use client';
-
+"use client"
+import React from 'react';
 import { useState } from 'react';
 import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
 
-// Define interfaces for different prediction results
+// Update interfaces to match API response
 interface ForecastData {
-  dates: string[];
   predictions: number[];
 }
 
@@ -24,7 +24,7 @@ interface PredictionResults {
   associationRules: AssociationRule[];
 }
 
-// Add new interface for comprehensive analysis
+// Rest of the interfaces remain the same...
 interface ComprehensiveAnalysis {
   basic_info: {
     company_name: string;
@@ -69,7 +69,6 @@ export default function PredictPage() {
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate input
     if (!searchTerm.trim()) {
       setError('Please enter a valid stock symbol');
       return;
@@ -80,19 +79,35 @@ export default function PredictPage() {
     setPredictionResults(null);
 
     try {
-      // Use environment variable for API base URL
       const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-      // Forecast API Call
+      // Updated forecast API call with correct request format
       const forecastResponse = await axios.post(`${BASE_URL}/forecast`, {
-        symbol: searchTerm.toUpperCase(),
-        forecast_horizon: 30,
-        interval: "1day"
+        stock_symbol: searchTerm.toUpperCase(),
+        forecast_horizon: 10
       }, {
-        timeout: 10000  // 10 seconds timeout
+        timeout: 10000
       });
 
-      // Association Rules API Call
+      // Generate dates array for the predictions
+      const dates = Array.from({ length: forecastResponse.data.predictions.length }, (_, i) => {
+        const date = new Date();
+        date.setDate(date.getDate() + i);
+        return date.toISOString().split('T')[0];
+      });
+
+      // Format the response to match the expected structure
+      const formattedForecastData = {
+        forecast: {
+          predictions: forecastResponse.data.predictions,
+          dates: dates
+        },
+        associationRules: [] // Keep existing association rules handling
+      };
+
+      setPredictionResults(formattedForecastData);
+
+      // Rest of the API calls remain the same...
       const associationResponse = await axios.post(`${BASE_URL}/stock_association`, {
         tickers: [searchTerm.toUpperCase(), "AAPL", "MSFT", "GOOG"],
         start_date: "2023-01-01",
@@ -100,39 +115,33 @@ export default function PredictPage() {
         min_support: 0.2,
         min_lift: 1.0
       }, {
-        timeout: 10000  // 10 seconds timeout
+        timeout: 10000
       });
 
-      // Comprehensive Analysis API Call
       const analysisResponse = await axios.post(`${BASE_URL}/comprehensive_analysis`, {
         symbol: searchTerm.toUpperCase(),
         start_date: "2023-01-01",
         end_date: "2024-01-01"
       }, {
-        timeout: 10000  // 10 seconds timeout
+        timeout: 10000
       });
 
       setPredictionResults({
-        forecast: forecastResponse.data.forecast_data,
+        ...formattedForecastData,
         associationRules: associationResponse.data.rules
       });
       setComprehensiveAnalysis(analysisResponse.data);
+
     } catch (err) {
-      // More detailed error handling
       if (axios.isAxiosError(err)) {
         if (err.response) {
-          // The request was made and the server responded with a status code
-          // that falls out of the range of 2xx
           setError(`Server Error: ${err.response.data.detail || 'Unknown error'}`);
         } else if (err.request) {
-          // The request was made but no response was received
           setError('No response from server. Please check your backend connection.');
         } else {
-          // Something happened in setting up the request that triggered an Error
           setError('Error setting up the request. Please try again.');
         }
       } else {
-        // Handle non-axios errors
         setError('An unexpected error occurred. Please try again.');
       }
       console.error('Prediction error:', err);
@@ -148,7 +157,6 @@ export default function PredictPage() {
       price: predictionResults.forecast.predictions[index]
     })) : 
     [];
-
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Background Gradient Overlay */}
