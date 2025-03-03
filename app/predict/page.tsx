@@ -1,6 +1,5 @@
 "use client"
-import React from 'react';
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Link from 'next/link';
@@ -65,6 +64,11 @@ export default function PredictPage() {
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
   const [comprehensiveAnalysis, setComprehensiveAnalysis] = useState<ComprehensiveAnalysis | null>(null);
+  const [isMounted, setIsMounted] = useState<boolean>(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,6 +161,249 @@ export default function PredictPage() {
       price: predictionResults.forecast.predictions[index]
     })) || [] : 
     [];
+
+  const renderCharts = () => {
+    if (!isMounted || !predictionResults) return null;
+    
+    return (
+      <div className="grid md:grid-cols-2 gap-8">
+        {/* Price Forecast with Interactive Chart and Table */}
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-8 space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold text-sky-500">
+              Price Forecast
+            </h2>
+            {/* View Mode Toggle */}
+            <div className="flex items-center space-x-2 bg-white/10 rounded-full p-1">
+              <button 
+                onClick={() => setViewMode('chart')}
+                className={`px-4 py-1 rounded-full transition-colors ${
+                  viewMode === 'chart' 
+                    ? 'bg-sky-500 text-white' 
+                    : 'text-gray-400 hover:bg-white/20'
+                }`}
+              >
+                Chart
+              </button>
+              <button 
+                onClick={() => setViewMode('table')}
+                className={`px-4 py-1 rounded-full transition-colors ${
+                  viewMode === 'table' 
+                    ? 'bg-sky-500 text-white' 
+                    : 'text-gray-400 hover:bg-white/20'
+                }`}
+              >
+                Table
+              </button>
+            </div>
+          </div>
+          
+          {/* Conditional Rendering: Chart or Table */}
+          {viewMode === 'chart' ? (
+            <div className="h-64 w-full relative">
+              {isMounted && (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart 
+                    data={chartData}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 50 }}
+                  >
+                    <CartesianGrid 
+                      strokeDasharray="3 3" 
+                      stroke="rgba(255,255,255,0.1)" 
+                      verticalFill={["rgba(14, 165, 233, 0.05)", "transparent"]}
+                      fillOpacity={0.1}
+                    />
+                    <XAxis 
+                      dataKey="date" 
+                      stroke="rgba(255,255,255,0.5)" 
+                      tickFormatter={(tick) => new Date(tick).toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric' 
+                      })}
+                      interval="preserveStartEnd"
+                      tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.5)' }}
+                      tickLine={{ stroke: 'rgba(255,255,255,0.2)' }}
+                      axisLine={{ stroke: 'rgba(255,255,255,0.2)' }}
+                    />
+                    <YAxis 
+                      stroke="rgba(255,255,255,0.5)" 
+                      tickFormatter={(value) => `$${value.toLocaleString()}`}
+                      width={70}
+                      tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.5)' }}
+                      tickLine={{ stroke: 'rgba(255,255,255,0.2)' }}
+                      axisLine={{ stroke: 'rgba(255,255,255,0.2)' }}
+                      label={{ 
+                        value: 'Price ($)', 
+                        angle: -90, 
+                        position: 'insideLeft', 
+                        fill: 'rgba(255,255,255,0.5)',
+                        offset: 0,
+                        style: { textAnchor: 'middle' }
+                      }}
+                    />
+                    <Tooltip 
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          const price = Number(payload[0].value);
+                          const date = new Date(label);
+                          const initialPrice = Number(chartData[0]?.price || 0);
+                          const percentChange = initialPrice 
+                            ? ((price - initialPrice) / initialPrice * 100).toFixed(2) 
+                            : '0';
+                          
+                          return (
+                            <div className="bg-black/90 border border-sky-500/30 rounded-lg p-4 shadow-2xl max-w-[250px] w-full">
+                              <p className="text-white font-bold mb-2 text-sm">
+                                {date.toLocaleDateString('en-US', { 
+                                  weekday: 'short', 
+                                  year: 'numeric', 
+                                  month: 'short', 
+                                  day: 'numeric' 
+                                })}
+                              </p>
+                              <div className="flex items-center justify-between space-x-2">
+                                <div className="flex items-center space-x-1">
+                                  <span className="text-sky-400 font-semibold text-xs">Price:</span>
+                                  <span className="text-white text-sm">${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                </div>
+                                <span className={`text-xs ${Number(percentChange) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                  ({percentChange}%)
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                      cursor={{ stroke: 'rgba(14, 165, 233, 0.5)', strokeWidth: 2 }}
+                      contentStyle={{ 
+                        backgroundColor: 'rgba(0,0,0,0.9)', 
+                        border: 'none',
+                        borderRadius: '0.5rem',
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                      }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="price" 
+                      stroke="#0EA5E9" 
+                      strokeWidth={3} 
+                      dot={{ 
+                        r: 5, 
+                        fill: '#0EA5E9', 
+                        stroke: 'white', 
+                        strokeWidth: 2,
+                        style: { filter: 'drop-shadow(0 0 4px rgba(14, 165, 233, 0.5))' }
+                      }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+              
+              {/* Statistical Annotations */}
+              {isMounted && chartData.length > 0 && (
+                <div className="absolute bottom-0 left-0 right-0 bg-white/5 p-3 rounded-b-2xl flex justify-between text-xs">
+                  <div className="flex-1 text-center">
+                    <span className="text-gray-400 mr-1 block">Initial Price:</span>
+                    <span className="text-white">${Number(chartData[0]?.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex-1 text-center">
+                    <span className="text-gray-400 mr-1 block">Final Predicted Price:</span>
+                    <span className="text-white">${Number(chartData[chartData.length - 1]?.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex-1 text-center">
+                    <span className="text-gray-400 mr-1 block">Price Change:</span>
+                    <span className={`font-semibold ${
+                      Number(chartData[chartData.length - 1]?.price || 0) >= Number(chartData[0]?.price || 0)
+                        ? 'text-green-500' 
+                        : 'text-red-500'
+                    }`}>
+                      {(
+                        ((Number(chartData[chartData.length - 1]?.price || 0) - Number(chartData[0]?.price || 0)) / Number(chartData[0]?.price || 1) * 100)
+                      ).toFixed(2)}%
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-x-auto max-h-96">
+              <table className="w-full text-left">
+                <thead className="sticky top-0 bg-black/80 backdrop-blur-sm">
+                  <tr className="border-b border-white/10">
+                    <th className="py-2 px-4 text-gray-400">Date</th>
+                    <th className="py-2 px-4 text-gray-400">Predicted Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {predictionResults.forecast.dates?.map((date: string, index: number) => (
+                    <tr key={date} className="border-b border-white/10 last:border-b-0 hover:bg-white/10 transition-colors">
+                      <td className="py-2 px-4 text-white">{date}</td>
+                      <td className="py-2 px-4 text-sky-400">
+                        ${predictionResults.forecast.predictions[index].toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Market Insights with Enhanced Design */}
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-8 space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold text-sky-500">
+              Market Insights
+            </h2>
+            <div className="flex items-center space-x-2 text-gray-400">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <span className="text-sm">Stock Correlations</span>
+            </div>
+          </div>
+
+          {predictionResults.associationRules.length > 0 ? (
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {predictionResults.associationRules.map((rule, index) => (
+                <div 
+                  key={index} 
+                  className="bg-white/10 rounded-lg p-4 border border-white/20 hover:border-sky-500 transition-all group"
+                >
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-white font-semibold group-hover:text-sky-400 transition-colors">
+                      {rule.antecedents.join(', ')} → {rule.consequents.join(', ')}
+                    </span>
+                    <span className="text-sky-400 text-sm font-medium">
+                      Lift: {rule.lift.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="text-gray-400 text-sm flex justify-between">
+                    <span>Support: {rule.support.toFixed(4)}</span>
+                    <span>Confidence: {rule.confidence.toFixed(4)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white/10 rounded-lg p-6 text-center border border-white/20">
+              <p className="text-gray-400 mb-4">
+                No significant market insights found for the selected stocks.
+              </p>
+              <div className="inline-flex items-center px-4 py-2 rounded-full border border-sky-500/30 bg-sky-500/10 text-sky-300">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Try different stock combinations
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Background Gradient Overlay */}
@@ -313,242 +560,7 @@ export default function PredictPage() {
           </div>
         )}
 
-        {/* Prediction Results with Enhanced Visualization */}
-        {predictionResults && (
-          <div className="grid md:grid-cols-2 gap-8">
-            {/* Price Forecast with Interactive Chart and Table */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-8 space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-sky-500">
-                  Price Forecast
-                </h2>
-                {/* View Mode Toggle */}
-                <div className="flex items-center space-x-2 bg-white/10 rounded-full p-1">
-                  <button 
-                    onClick={() => setViewMode('chart')}
-                    className={`px-4 py-1 rounded-full transition-colors ${
-                      viewMode === 'chart' 
-                        ? 'bg-sky-500 text-white' 
-                        : 'text-gray-400 hover:bg-white/20'
-                    }`}
-                  >
-                    Chart
-                  </button>
-                  <button 
-                    onClick={() => setViewMode('table')}
-                    className={`px-4 py-1 rounded-full transition-colors ${
-                      viewMode === 'table' 
-                        ? 'bg-sky-500 text-white' 
-                        : 'text-gray-400 hover:bg-white/20'
-                    }`}
-                  >
-                    Table
-                  </button>
-                </div>
-              </div>
-              
-              {/* Conditional Rendering: Chart or Table */}
-              {viewMode === 'chart' ? (
-                <div className="h-64 w-full relative">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart 
-                      data={chartData}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 50 }}
-                    >
-                      <CartesianGrid 
-                        strokeDasharray="3 3" 
-                        stroke="rgba(255,255,255,0.1)" 
-                        verticalFill={["rgba(14, 165, 233, 0.05)", "transparent"]}
-                        fillOpacity={0.1}
-                      />
-                      <XAxis 
-                        dataKey="date" 
-                        stroke="rgba(255,255,255,0.5)" 
-                        tickFormatter={(tick) => new Date(tick).toLocaleDateString('en-US', { 
-                          month: 'short', 
-                          day: 'numeric' 
-                        })}
-                        interval="preserveStartEnd"
-                        tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.5)' }}
-                        tickLine={{ stroke: 'rgba(255,255,255,0.2)' }}
-                        axisLine={{ stroke: 'rgba(255,255,255,0.2)' }}
-                      />
-                      <YAxis 
-                        stroke="rgba(255,255,255,0.5)" 
-                        tickFormatter={(value) => `$${value.toLocaleString()}`}
-                        width={70}
-                        tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.5)' }}
-                        tickLine={{ stroke: 'rgba(255,255,255,0.2)' }}
-                        axisLine={{ stroke: 'rgba(255,255,255,0.2)' }}
-                        label={{ 
-                          value: 'Price ($)', 
-                          angle: -90, 
-                          position: 'insideLeft', 
-                          fill: 'rgba(255,255,255,0.5)',
-                          offset: 0,
-                          style: { textAnchor: 'middle' }
-                        }}
-                      />
-                      <Tooltip 
-                        content={({ active, payload, label }) => {
-                          if (active && payload && payload.length) {
-                            const price = Number(payload[0].value);
-                            const date = new Date(label);
-                            const initialPrice = Number(chartData[0]?.price || 0);
-                            const percentChange = initialPrice 
-                              ? ((price - initialPrice) / initialPrice * 100).toFixed(2) 
-                              : '0';
-                            
-                            return (
-                              <div className="bg-black/90 border border-sky-500/30 rounded-lg p-4 shadow-2xl max-w-[250px] w-full">
-                                <p className="text-white font-bold mb-2 text-sm">
-                                  {date.toLocaleDateString('en-US', { 
-                                    weekday: 'short', 
-                                    year: 'numeric', 
-                                    month: 'short', 
-                                    day: 'numeric' 
-                                  })}
-                                </p>
-                                <div className="flex items-center justify-between space-x-2">
-                                  <div className="flex items-center space-x-1">
-                                    <span className="text-sky-400 font-semibold text-xs">Price:</span>
-                                    <span className="text-white text-sm">${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                  </div>
-                                  <span className={`text-xs ${Number(percentChange) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                    ({percentChange}%)
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          }
-                          return null;
-                        }}
-                        cursor={{ stroke: 'rgba(14, 165, 233, 0.5)', strokeWidth: 2 }}
-                        contentStyle={{ 
-                          backgroundColor: 'rgba(0,0,0,0.9)', 
-                          border: 'none',
-                          borderRadius: '0.5rem',
-                          boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                        }}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="price" 
-                        stroke="#0EA5E9" 
-                        strokeWidth={3} 
-                        dot={{ 
-                          r: 5, 
-                          fill: '#0EA5E9', 
-                          stroke: 'white', 
-                          strokeWidth: 2,
-                          style: { filter: 'drop-shadow(0 0 4px rgba(14, 165, 233, 0.5))' }
-                        }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                  
-                  {/* Statistical Annotations */}
-                  {chartData.length > 0 && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-white/5 p-3 rounded-b-2xl flex justify-between text-xs">
-                      <div className="flex-1 text-center">
-                        <span className="text-gray-400 mr-1 block">Initial Price:</span>
-                        <span className="text-white">${Number(chartData[0]?.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                      </div>
-                      <div className="flex-1 text-center">
-                        <span className="text-gray-400 mr-1 block">Final Predicted Price:</span>
-                        <span className="text-white">${Number(chartData[chartData.length - 1]?.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                      </div>
-                      <div className="flex-1 text-center">
-                        <span className="text-gray-400 mr-1 block">Price Change:</span>
-                        <span className={`font-semibold ${
-                          Number(chartData[chartData.length - 1]?.price || 0) >= Number(chartData[0]?.price || 0)
-                            ? 'text-green-500' 
-                            : 'text-red-500'
-                        }`}>
-                          {(
-                            ((Number(chartData[chartData.length - 1]?.price || 0) - Number(chartData[0]?.price || 0)) / Number(chartData[0]?.price || 1) * 100)
-                          ).toFixed(2)}%
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="overflow-x-auto max-h-96">
-                  <table className="w-full text-left">
-                    <thead className="sticky top-0 bg-black/80 backdrop-blur-sm">
-                      <tr className="border-b border-white/10">
-                        <th className="py-2 px-4 text-gray-400">Date</th>
-                        <th className="py-2 px-4 text-gray-400">Predicted Price</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {predictionResults.forecast.dates?.map((date: string, index: number) => (
-                        <tr key={date} className="border-b border-white/10 last:border-b-0 hover:bg-white/10 transition-colors">
-                          <td className="py-2 px-4 text-white">{date}</td>
-                          <td className="py-2 px-4 text-sky-400">
-                            ${predictionResults.forecast.predictions[index].toFixed(2)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            {/* Market Insights with Enhanced Design */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-8 space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-sky-500">
-                  Market Insights
-                </h2>
-                <div className="flex items-center space-x-2 text-gray-400">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                  <span className="text-sm">Stock Correlations</span>
-                </div>
-              </div>
-
-              {predictionResults.associationRules.length > 0 ? (
-                <div className="space-y-4 max-h-96 overflow-y-auto">
-                  {predictionResults.associationRules.map((rule, index) => (
-                    <div 
-                      key={index} 
-                      className="bg-white/10 rounded-lg p-4 border border-white/20 hover:border-sky-500 transition-all group"
-                    >
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-white font-semibold group-hover:text-sky-400 transition-colors">
-                          {rule.antecedents.join(', ')} → {rule.consequents.join(', ')}
-                        </span>
-                        <span className="text-sky-400 text-sm font-medium">
-                          Lift: {rule.lift.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="text-gray-400 text-sm flex justify-between">
-                        <span>Support: {rule.support.toFixed(4)}</span>
-                        <span>Confidence: {rule.confidence.toFixed(4)}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="bg-white/10 rounded-lg p-6 text-center border border-white/20">
-                  <p className="text-gray-400 mb-4">
-                    No significant market insights found for the selected stocks.
-                  </p>
-                  <div className="inline-flex items-center px-4 py-2 rounded-full border border-sky-500/30 bg-sky-500/10 text-sky-300">
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Try different stock combinations
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        {renderCharts()}
 
         {/* Comprehensive Analysis Section */}
         {comprehensiveAnalysis && (

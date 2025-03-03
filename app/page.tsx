@@ -1,20 +1,28 @@
 'use client';
 
-import React, { useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from 'next/link';
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 export default function Home() {
   const mainRef = useRef(null);
+  // Add a state to track if component is mounted
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    // Mark component as mounted to avoid hydration mismatch
+    setIsMounted(true);
+    
+    // Only run GSAP on the client side after component is mounted
     if (typeof window !== 'undefined') {
-      gsap.registerPlugin(ScrollTrigger);
-      
-      ScrollTrigger.getAll().forEach(trigger => trigger.kill());
-      
-      const initScrollTriggers = () => {
+      // Small timeout to ensure DOM is fully ready
+      const timer = setTimeout(() => {
+        gsap.registerPlugin(ScrollTrigger);
+        
+        // Clean up any existing scroll triggers
+        ScrollTrigger.getAll().forEach(trigger => trigger.kill());
+        
         const ctx = gsap.context(() => {
           // Enhanced Parallax Background Effect
           gsap.to(".parallax-bg", {
@@ -22,13 +30,12 @@ export default function Home() {
               trigger: ".hero-section",
               start: "top top",
               end: "bottom top",
-              scrub: 1
+              scrub: true
             },
-            y: 200,
-            scale: 1.1,
-            opacity: 0.5
+            y: 100,
+            ease: "none"
           });
-
+          
           // Floating Elements Animation
           const floatingElements = document.querySelectorAll('.floating-element');
           floatingElements.forEach((element, index) => {
@@ -126,17 +133,13 @@ export default function Home() {
             });
           });
         }, mainRef);
-
+        
         return () => ctx.revert();
-      };
-
-      const timer = setTimeout(initScrollTriggers, 100);
-      return () => {
-        clearTimeout(timer);
-        ScrollTrigger.getAll().forEach(trigger => trigger.kill());
-      };
+      }, 100);
+      
+      return () => clearTimeout(timer);
     }
-  }, []);
+  }, [isMounted]);
 
   return (
     <div ref={mainRef} className="min-h-screen bg-black overflow-hidden">
@@ -146,19 +149,21 @@ export default function Home() {
         <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
         
         {/* Floating Elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          {[...Array(20)].map((_, i) => (
-            <div
-              key={i}
-              className="floating-element absolute w-2 h-2 bg-sky-500/20 rounded-full"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 5}s`
-              }}
-            />
-          ))}
-        </div>
+        {isMounted && (
+          <div className="absolute inset-0 overflow-hidden">
+            {[...Array(20)].map((_, i) => (
+              <div
+                key={i}
+                className="floating-element absolute w-2 h-2 bg-sky-500/20 rounded-full"
+                style={{
+                  left: `${i * 5}%`,
+                  top: `${(i * 7) % 100}%`,
+                  animationDelay: `${i * 0.25}s`
+                }}
+              />
+            ))}
+          </div>
+        )}
         
         {/* Animated Gradient Orbs */}
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-sky-500/30 rounded-full filter blur-[100px] animate-pulse" />
@@ -180,7 +185,7 @@ export default function Home() {
 
             {/* Enhanced Navigation Links */}
             <div className="hidden md:flex items-center space-x-8">
-              {['Features', 'Market Trends', 'Pricing', 'About'].map((item) => (
+              {['Features', 'Market Trends', 'Pricing'].map((item) => (
                 <a
                   key={item}
                   href={`#${item.toLowerCase().replace(' ', '-')}`}
@@ -191,24 +196,25 @@ export default function Home() {
                   <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-sky-500/0 to-blue-500/0 group-hover:from-sky-500/5 group-hover:to-blue-500/5 transition-all duration-300 rounded-lg -z-10"></span>
                 </a>
               ))}
+              <Link
+                href="/about"
+                className="text-gray-400 hover:text-white transition-colors relative group py-2"
+              >
+                <span className="relative z-10">About</span>
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-sky-500 to-blue-500 group-hover:w-full transition-all duration-300"></span>
+                <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-sky-500/0 to-blue-500/0 group-hover:from-sky-500/5 group-hover:to-blue-500/5 transition-all duration-300 rounded-lg -z-10"></span>
+              </Link>
             </div>
 
             {/* Enhanced CTA Buttons */}
             <div className="flex items-center space-x-4">
-              <button className="hidden md:flex items-center px-6 py-2.5 text-gray-400 hover:text-white transition-all duration-300 border border-gray-700 rounded-lg hover:border-sky-500 hover:bg-sky-500/10 group relative overflow-hidden">
-                <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-sky-500/10 to-blue-500/10 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></span>
-                <svg className="w-5 h-5 mr-2 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                <span className="relative z-10">Log in</span>
-              </button>
-              
+              {/* Login button removed */}
               <Link 
                 href="/predict" 
                 className="rounded-lg px-8 py-3 bg-gradient-to-r from-sky-600 to-blue-600 text-white font-medium hover:from-sky-700 hover:to-blue-700 transition-all duration-300 text-lg flex items-center group relative overflow-hidden shadow-lg shadow-sky-500/20 hover:shadow-sky-500/40"
               >
                 <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-sky-400/20 to-blue-400/20 transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></span>
-                <span className="relative z-10">Start Predicting</span>
+                <span className="relative z-10">Try Analysis</span>
                 <svg className="w-5 h-5 ml-2 transform group-hover:translate-x-1 transition-transform relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
@@ -235,7 +241,8 @@ export default function Home() {
           {/* Parallax Background */}
           <div className="parallax-bg absolute inset-0">
             <div className="absolute inset-0 bg-gradient-to-br from-black via-black/95 to-sky-950/20" />
-            <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
+            <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))] opacity-10" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-sky-500/5 to-transparent" />
           </div>
           
           <div className="relative w-full">
@@ -1040,12 +1047,15 @@ export default function Home() {
 
             {/* View All Features Button */}
             <div className="mt-16 text-center">
-              <button className="rounded-lg px-8 py-4 bg-sky-600 text-white font-medium hover:bg-sky-700 transition-colors inline-flex items-center group">
-                <span>Explore All Features</span>
+              <Link 
+                href="/predict" 
+                className="rounded-lg px-8 py-4 bg-sky-600 text-white font-medium hover:bg-sky-700 transition-colors inline-flex items-center group"
+              >
+                <span>Try Feature</span>
                 <svg className="w-5 h-5 ml-2 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -1229,16 +1239,6 @@ export default function Home() {
                 ))}
               </div>
             </div>
-
-            {/* FAQ Link */}
-            <div className="mt-16 text-center">
-              <a href="#faq" className="inline-flex items-center text-sky-400 hover:text-sky-300 transition-colors">
-                <span>Have questions? Check our FAQ</span>
-                <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                </svg>
-              </a>
-            </div>
           </div>
         </div>
 
@@ -1364,7 +1364,7 @@ export default function Home() {
               <div>
                 <h4 className="text-lg font-semibold mb-4">Company</h4>
                 <ul className="space-y-3">
-                  <li><a href="#" className="text-gray-400 hover:text-white transition-colors">About</a></li>
+                  <li><Link href="/about" className="text-gray-400 hover:text-white transition-colors">About</Link></li>
                   <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Blog</a></li>
                   <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Careers</a></li>
                   <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Press</a></li>

@@ -40,75 +40,120 @@ interface MarketTrendsData {
   }[];
 }
 
+// Mock data for fallback
+const mockMarketTrendsData: MarketTrendsData = {
+  topPerformingSectors: [
+    { sector: 'Technology', oneDay: 1.2, oneWeek: 3.5, oneMonth: 5.8, threeMonths: 12.3, ytd: 15.7, oneYear: 28.4 },
+    { sector: 'Healthcare', oneDay: 0.8, oneWeek: 2.1, oneMonth: 4.2, threeMonths: 9.5, ytd: 11.2, oneYear: 18.9 },
+    { sector: 'Consumer Discretionary', oneDay: 0.6, oneWeek: 1.9, oneMonth: 3.7, threeMonths: 8.1, ytd: 10.5, oneYear: 16.2 },
+  ],
+  bottomPerformingSectors: [
+    { sector: 'Energy', oneDay: -0.7, oneWeek: -2.1, oneMonth: -3.5, threeMonths: -7.2, ytd: -9.8, oneYear: -12.4 },
+    { sector: 'Utilities', oneDay: -0.5, oneWeek: -1.8, oneMonth: -2.9, threeMonths: -5.6, ytd: -7.2, oneYear: -9.8 },
+    { sector: 'Real Estate', oneDay: -0.3, oneWeek: -1.2, oneMonth: -2.1, threeMonths: -4.3, ytd: -5.9, oneYear: -8.2 },
+  ],
+  marketIndices: [
+    { name: 'S&P 500', current: 4782.82, change: 35.21, percentChange: 0.74 },
+    { name: 'Dow Jones', current: 38150.30, change: 368.95, percentChange: 0.97 },
+    { name: 'NASDAQ', current: 15628.04, change: 125.45, percentChange: 0.81 },
+    { name: 'Russell 2000', current: 2018.56, change: 12.75, percentChange: 0.63 },
+  ],
+  marketVolatility: [
+    { date: '2023-01', value: 18.5 },
+    { date: '2023-02', value: 17.2 },
+    { date: '2023-03', value: 19.8 },
+    { date: '2023-04', value: 16.3 },
+    { date: '2023-05', value: 15.9 },
+    { date: '2023-06', value: 14.7 },
+    { date: '2023-07', value: 13.8 },
+    { date: '2023-08', value: 15.2 },
+    { date: '2023-09', value: 16.8 },
+    { date: '2023-10', value: 18.1 },
+    { date: '2023-11', value: 16.5 },
+    { date: '2023-12', value: 15.3 },
+  ],
+  sectorRotation: [
+    { sector: 'Technology', momentum: 0.85 },
+    { sector: 'Healthcare', momentum: 0.72 },
+    { sector: 'Financials', momentum: 0.65 },
+    { sector: 'Consumer Discretionary', momentum: 0.58 },
+    { sector: 'Communication Services', momentum: 0.52 },
+    { sector: 'Industrials', momentum: 0.48 },
+    { sector: 'Materials', momentum: 0.42 },
+    { sector: 'Consumer Staples', momentum: 0.38 },
+    { sector: 'Real Estate', momentum: 0.32 },
+    { sector: 'Utilities', momentum: 0.25 },
+    { sector: 'Energy', momentum: 0.18 },
+  ]
+};
+
 export default function MarketTrendsPage() {
+  // Initialize with null to avoid hydration mismatch
   const [marketTrendsData, setMarketTrendsData] = useState<MarketTrendsData | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  // Add a state to track if component is mounted
+  const [isMounted, setIsMounted] = useState<boolean>(false);
 
   useEffect(() => {
+    // Mark component as mounted to avoid hydration mismatch
+    setIsMounted(true);
+    
+    // Set mock data after component is mounted
+    setMarketTrendsData(mockMarketTrendsData);
+    
     const fetchMarketTrends = async () => {
-      setLoading(true);
       try {
-        // This would be replaced with your actual API endpoint
+        // Try to fetch from API
         const response = await axios.get('/api/market-trends');
         setMarketTrendsData(response.data);
       } catch (err) {
         console.error('Error fetching market trends:', err);
-        setError('Failed to load market trends data');
-        
-        // For demo purposes, set mock data
-        setMarketTrendsData({
-          topPerformingSectors: [
-            { sector: 'Technology', oneDay: 1.2, oneWeek: 3.5, oneMonth: 5.8, threeMonths: 12.3, ytd: 15.7, oneYear: 28.4 },
-            { sector: 'Healthcare', oneDay: 0.8, oneWeek: 2.1, oneMonth: 4.2, threeMonths: 9.5, ytd: 11.2, oneYear: 18.9 },
-            { sector: 'Consumer Discretionary', oneDay: 0.6, oneWeek: 1.9, oneMonth: 3.7, threeMonths: 8.1, ytd: 10.5, oneYear: 16.2 },
-          ],
-          bottomPerformingSectors: [
-            { sector: 'Energy', oneDay: -0.7, oneWeek: -2.1, oneMonth: -3.5, threeMonths: -7.2, ytd: -9.8, oneYear: -12.4 },
-            { sector: 'Utilities', oneDay: -0.5, oneWeek: -1.8, oneMonth: -2.9, threeMonths: -5.6, ytd: -7.2, oneYear: -9.8 },
-            { sector: 'Real Estate', oneDay: -0.3, oneWeek: -1.2, oneMonth: -2.1, threeMonths: -4.3, ytd: -5.9, oneYear: -8.2 },
-          ],
-          marketIndices: [
-            { name: 'S&P 500', current: 4782.82, change: 35.21, percentChange: 0.74 },
-            { name: 'Dow Jones', current: 38150.30, change: 368.95, percentChange: 0.97 },
-            { name: 'NASDAQ', current: 15628.04, change: 125.45, percentChange: 0.81 },
-            { name: 'Russell 2000', current: 2018.56, change: 12.75, percentChange: 0.63 },
-          ],
-          marketVolatility: [
-            { date: '2023-01', value: 18.5 },
-            { date: '2023-02', value: 17.2 },
-            { date: '2023-03', value: 19.8 },
-            { date: '2023-04', value: 16.3 },
-            { date: '2023-05', value: 15.9 },
-            { date: '2023-06', value: 14.7 },
-            { date: '2023-07', value: 13.8 },
-            { date: '2023-08', value: 15.2 },
-            { date: '2023-09', value: 16.8 },
-            { date: '2023-10', value: 18.1 },
-            { date: '2023-11', value: 16.5 },
-            { date: '2023-12', value: 15.3 },
-          ],
-          sectorRotation: [
-            { sector: 'Technology', momentum: 0.85 },
-            { sector: 'Healthcare', momentum: 0.72 },
-            { sector: 'Financials', momentum: 0.65 },
-            { sector: 'Consumer Discretionary', momentum: 0.58 },
-            { sector: 'Communication Services', momentum: 0.52 },
-            { sector: 'Industrials', momentum: 0.48 },
-            { sector: 'Materials', momentum: 0.42 },
-            { sector: 'Consumer Staples', momentum: 0.38 },
-            { sector: 'Real Estate', momentum: 0.32 },
-            { sector: 'Utilities', momentum: 0.25 },
-            { sector: 'Energy', momentum: 0.18 },
-          ]
-        });
+        // Use mock data as fallback (already set above)
       } finally {
         setLoading(false);
       }
     };
 
+    // Fetch data after component is mounted
     fetchMarketTrends();
   }, []);
+
+  // Show a simple loading state until client-side code takes over
+  if (!isMounted) {
+    return (
+      <div className="min-h-screen bg-black text-white">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold text-sky-400">Market Trends Analysis</h1>
+            <div className="flex space-x-2">
+              <Link href="/predict" className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-md transition-colors">
+                Back to Predictions
+              </Link>
+            </div>
+          </div>
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-500"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If we have no data at all, show a simple message
+  if (!marketTrendsData && !loading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-sky-400 mb-4">Market Trends Analysis</h1>
+          <p className="text-xl mb-6">Unable to load market trends data</p>
+          <Link href="/predict" className="bg-sky-600 hover:bg-sky-700 text-white px-6 py-3 rounded-md transition-colors">
+            Back to Predictions
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -139,10 +184,10 @@ export default function MarketTrendsPage() {
                 {marketTrendsData.marketIndices.map((index) => (
                   <div key={index.name} className="bg-white/5 p-4 rounded-md">
                     <h3 className="text-lg font-medium">{index.name}</h3>
-                    <div className="text-2xl font-bold">{index.current.toLocaleString()}</div>
+                    <div className="text-2xl font-bold">{index.current.toLocaleString('en-US')}</div>
                     <div className={`flex items-center ${index.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                       <span>{index.change >= 0 ? '▲' : '▼'}</span>
-                      <span className="ml-1">{Math.abs(index.change).toLocaleString()}</span>
+                      <span className="ml-1">{Math.abs(index.change).toLocaleString('en-US')}</span>
                       <span className="ml-1">({index.percentChange.toFixed(2)}%)</span>
                     </div>
                   </div>
@@ -244,21 +289,23 @@ export default function MarketTrendsPage() {
             <div className="bg-white/10 rounded-lg p-6 border border-white/20">
               <h2 className="text-xl font-semibold text-sky-400 mb-4">Market Volatility (VIX)</h2>
               <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={marketTrendsData.marketVolatility}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                    <XAxis dataKey="date" stroke="#888" />
-                    <YAxis stroke="#888" />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#333', borderColor: '#555' }}
-                      labelStyle={{ color: '#fff' }}
-                    />
-                    <Line type="monotone" dataKey="value" stroke="#8884d8" activeDot={{ r: 8 }} />
-                  </LineChart>
-                </ResponsiveContainer>
+                {isMounted && (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={marketTrendsData.marketVolatility}
+                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                      <XAxis dataKey="date" stroke="#888" />
+                      <YAxis stroke="#888" />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#333', borderColor: '#555' }}
+                        labelStyle={{ color: '#fff' }}
+                      />
+                      <Line type="monotone" dataKey="value" stroke="#8884d8" activeDot={{ r: 8 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </div>
 
@@ -266,23 +313,25 @@ export default function MarketTrendsPage() {
             <div className="bg-white/10 rounded-lg p-6 border border-white/20">
               <h2 className="text-xl font-semibold text-sky-400 mb-4">Sector Momentum</h2>
               <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={marketTrendsData.sectorRotation}
-                    layout="vertical"
-                    margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                    <XAxis type="number" domain={[0, 1]} stroke="#888" />
-                    <YAxis dataKey="sector" type="category" stroke="#888" width={90} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#333', borderColor: '#555' }}
-                      labelStyle={{ color: '#fff' }}
-                      formatter={(value: any) => [`${(value * 100).toFixed(1)}%`, 'Momentum']}
-                    />
-                    <Bar dataKey="momentum" fill="#82ca9d" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {isMounted && (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={marketTrendsData.sectorRotation}
+                      layout="vertical"
+                      margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                      <XAxis type="number" domain={[0, 1]} stroke="#888" />
+                      <YAxis dataKey="sector" type="category" stroke="#888" width={90} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#333', borderColor: '#555' }}
+                        labelStyle={{ color: '#fff' }}
+                        formatter={(value: any) => [`${(value * 100).toFixed(1)}%`, 'Momentum']}
+                      />
+                      <Bar dataKey="momentum" fill="#82ca9d" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </div>
           </div>

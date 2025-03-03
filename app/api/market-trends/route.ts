@@ -48,8 +48,22 @@ const marketTrendsData = {
 };
 
 export async function GET() {
-  // In a real application, you would fetch this data from a database or external API
-  // For now, we'll return mock data
-  
-  return NextResponse.json(marketTrendsData);
+  try {
+    // In a real application, you would fetch this data from a database or external API
+    // For now, we'll return mock data
+    
+    return NextResponse.json(marketTrendsData, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store, max-age=0',
+      },
+    });
+  } catch (error) {
+    console.error('Error in market-trends API route:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch market trends data' },
+      { status: 500 }
+    );
+  }
 } 
