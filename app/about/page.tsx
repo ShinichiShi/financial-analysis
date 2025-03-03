@@ -87,7 +87,7 @@ export default function AboutPage() {
           
           <h2 className="text-2xl font-bold mt-12 mb-6 text-sky-400">Get Started Today</h2>
           <p className="text-gray-300 mb-8">
-            Whether you're a seasoned investor or just starting out, FinStock provides the tools you need to make informed investment decisions in today's complex financial markets.
+            Whether you&apos;re a seasoned investor or just starting out, FinStock provides the tools you need to make informed investment decisions in today&apos;s complex financial markets.
           </p>
           
           <div className="mt-8 text-center">

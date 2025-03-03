@@ -4,13 +4,6 @@ import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import Link from 'next/link';
 
-interface MarketTrend {
-  sector: string;
-  performance: number;
-  volume: number;
-  volatility: number;
-}
-
 interface SectorPerformance {
   sector: string;
   oneDay: number;
@@ -91,7 +84,6 @@ export default function MarketTrendsPage() {
   // Initialize with null to avoid hydration mismatch
   const [marketTrendsData, setMarketTrendsData] = useState<MarketTrendsData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   // Add a state to track if component is mounted
   const [isMounted, setIsMounted] = useState<boolean>(false);
 
@@ -170,10 +162,6 @@ export default function MarketTrendsPage() {
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-500"></div>
-          </div>
-        ) : error ? (
-          <div className="bg-red-900/30 border border-red-500 text-red-200 p-4 rounded-md">
-            {error}
           </div>
         ) : marketTrendsData ? (
           <div className="space-y-8">
@@ -326,7 +314,7 @@ export default function MarketTrendsPage() {
                       <Tooltip 
                         contentStyle={{ backgroundColor: '#333', borderColor: '#555' }}
                         labelStyle={{ color: '#fff' }}
-                        formatter={(value: any) => [`${(value * 100).toFixed(1)}%`, 'Momentum']}
+                        formatter={(value: number) => [`${(value * 100).toFixed(1)}%`, 'Momentum']}
                       />
                       <Bar dataKey="momentum" fill="#82ca9d" />
                     </BarChart>
