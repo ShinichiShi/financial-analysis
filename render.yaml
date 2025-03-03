@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: financial-analysis-api
+    env: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: ./start.sh
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.0 
