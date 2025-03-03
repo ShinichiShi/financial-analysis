@@ -3,7 +3,9 @@ services:
     name: financial-analysis-api
     env: python
     buildCommand: pip install -r backend/requirements.txt
-    startCommand: ./start.sh
+    startCommand: bash ./start.sh
     envVars:
       - key: PYTHON_VERSION
-        value: 3.9.0 
+        value: 3.9.16
+      - key: PATH
+        value: /opt/render/project/python/venv/bin:${PATH} 
