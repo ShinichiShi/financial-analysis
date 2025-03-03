@@ -278,20 +278,11 @@ export default function Home() {
                       className="rounded-lg px-8 py-4 bg-gradient-to-r from-sky-600 to-blue-600 text-white font-medium hover:from-sky-700 hover:to-blue-700 transition-all duration-300 text-lg flex items-center group relative overflow-hidden shadow-lg shadow-sky-500/20 hover:shadow-sky-500/40 transform hover:-translate-y-1"
                     >
                       <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-white/20 to-transparent transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></span>
-                      <span className="relative z-10">Start Predicting</span>
+                      <span className="relative z-10">Try Analysis</span>
                       <svg className="w-5 h-5 ml-2 transform group-hover:translate-x-1 transition-transform relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                       </svg>
                     </Link>
-                    
-                    <button className="rounded-lg px-8 py-4 bg-white/5 text-white font-medium hover:bg-white/10 transition-all duration-300 text-lg border border-white/20 flex items-center group backdrop-blur-sm transform hover:-translate-y-1 relative overflow-hidden">
-                      <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-sky-500/10 to-blue-500/10 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></span>
-                      <svg className="w-5 h-5 mr-2 group-hover:animate-pulse relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span className="relative z-10">Watch Demo</span>
-                    </button>
                   </div>
                   
                   {/* Enhanced Stats Section */}
@@ -1142,8 +1133,7 @@ export default function Home() {
                       'Full trend analysis',
                       'Portfolio tracking',
                       'Priority email support',
-                      'Advanced mobile features',
-                      'API access (100 req/day)'
+                      'Advanced mobile features'
                     ].map((feature, index) => (
                       <li key={index} className="flex items-center">
                         <svg className="w-5 h-5 text-sky-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1178,7 +1168,6 @@ export default function Home() {
                       'Team collaboration',
                       'Dedicated account manager',
                       'Custom integrations',
-                      'Unlimited API access',
                       'SLA & premium support'
                     ].map((feature, index) => (
                       <li key={index} className="flex items-center">
@@ -1345,7 +1334,6 @@ export default function Home() {
                   <li><a href="#features" className="text-gray-400 hover:text-white transition-colors">Features</a></li>
                   <li><a href="#pricing" className="text-gray-400 hover:text-white transition-colors">Pricing</a></li>
                   <li><a href="#market-trends" className="text-gray-400 hover:text-white transition-colors">Market Trends</a></li>
-                  <li><a href="#" className="text-gray-400 hover:text-white transition-colors">API</a></li>
                 </ul>
               </div>
 
@@ -1355,7 +1343,6 @@ export default function Home() {
                 <ul className="space-y-3">
                   <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Documentation</a></li>
                   <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Help Center</a></li>
-                  <li><a href="#" className="text-gray-400 hover:text-white transition-colors">API Status</a></li>
                   <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Contact</a></li>
                 </ul>
               </div>
