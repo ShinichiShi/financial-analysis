@@ -2,10 +2,13 @@ services:
   - type: web
     name: financial-analysis-api
     env: python
-    buildCommand: pip install -r backend/requirements.txt
-    startCommand: bash ./start.sh
+    buildCommand: ./build.sh
+    startCommand: ./start.sh
+    # Note: The app will use the PORT environment variable provided by Render
+    # If not provided, it will default to port 8000 (as specified in start.sh and app.py)
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.16
-      - key: PATH
-        value: /opt/render/project/python/venv/bin:${PATH} 
+    plan: free
+    healthCheckPath: /
+ 
