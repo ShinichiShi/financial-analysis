@@ -7,3 +7,4 @@ yfinance
 pydantic
 tensorflow
 requests
+mlxtend
