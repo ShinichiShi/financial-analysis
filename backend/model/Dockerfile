@@ -5,7 +5,7 @@ FROM python:3.10
 WORKDIR /app
 
 # Copy only the backend folder contents
-COPY ./backend /app
+COPY ./backend/model /app
 
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
