@@ -1,0 +1,18 @@
+[service]
+name = "fastapi-backend"
+
+# Set the root directory to the backend folder
+rootDirectory = "backend"
+
+# Define the start command for FastAPI (adjust if needed)
+[build]
+startCommand = "uvicorn app:app --host 0.0.0.0 --port $PORT"
+
+# If you're using a virtual environment or have dependencies
+[deploy]
+numReplicas = 1  # Adjust based on your scaling needs
+restartPolicy = "always"
+
+# Define environment variables (Optional: You can also set these in the Railway dashboard)
+[env]
+PORT = "8000"
