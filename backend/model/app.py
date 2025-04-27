@@ -23,6 +23,9 @@ from datetime import datetime, timedelta
 from mlxtend.frequent_patterns import apriori
 from mlxtend.frequent_patterns import association_rules
 from typing import Dict, Any
+from dotenv import load_dotenv
+import os
+load_dotenv(dotenv_path='.env.local') 
 
 app = FastAPI(title="Stock Price Prediction API")
 import logging
@@ -49,7 +52,7 @@ except Exception as e:
     raise HTTPException(status_code=500,detail=f"Error loading model or scaler: {e}")
 
 # Twelve Data API details
-TWELVE_DATA_API_KEY = "195c0092a87e4ce294517bd8ce0e9bde"
+TWELVE_DATA_API_KEY = os.getenv("TWELVE_DATA_API_KEY")
 TWELVE_DATA_BASE_URL = "https://api.twelvedata.com"
 
 class StockAssociationRequest(BaseModel):

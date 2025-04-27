@@ -8,3 +8,4 @@ pydantic
 tensorflow
 requests
 mlxtend
+python-dotenv
